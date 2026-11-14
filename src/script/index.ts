@@ -4,7 +4,8 @@
  * No cookies, no local storage, no personal data.
  */
 
-import type {} from "../types";
+import { parseProperties } from "../properties";
+import type { EventProperties } from "../types";
 
 type Payload = Record<string, unknown>;
 type BeforeSendEvent = { type: "pageview" | "event"; url: string };
@@ -150,7 +151,16 @@ export function start(): void {
   }
 
   function event(payload: { name?: unknown; data?: unknown } | undefined): void {
-    if (!payload || typeof payload.name !== "string" || !payload.name) return;
+    const name = payload && typeof payload.name === "string" ? payload.name.trim() : "";
+    if (!name) {
+      log("Event name must be a non-empty string.");
+      return;
+    }
+    const parsed = parseProperties(payload!.data as EventProperties | undefined);
+    if (!parsed.ok) {
+      log(parsed.error);
+      return;
+    }
     const url = prepare("event");
     if (!url) return;
     deliver("event", {
@@ -160,8 +170,8 @@ export function start(): void {
       url,
       route: null,
       referrer: null,
-      name: payload.name.slice(0, 255),
-      data: payload.data && typeof payload.data === "object" ? payload.data : undefined,
+      name: name.slice(0, 255),
+      data: parsed.data,
       sdkn,
       sdkv,
     });

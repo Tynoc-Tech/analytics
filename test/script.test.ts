@@ -85,6 +85,26 @@ describe("browser script", () => {
     expect(sent[1].body).toMatchObject({ route: "/blog/[slug]" });
   });
 
+  it("works with the plain HTML stub snippet", async () => {
+    // Same snippet as the README "Script tag" option.
+    const w = window as unknown as { tynoc?: { (...a: unknown[]): void; q?: unknown[] } };
+    w.tynoc =
+      w.tynoc ||
+      function (...args: unknown[]) {
+        // The README snippet pushes the `arguments` object.
+        // eslint-disable-next-line prefer-rest-params
+        (w.tynoc!.q = w.tynoc!.q || []).push(arguments);
+        void args;
+      };
+    w.tynoc("event", { name: "Signup", data: { plan: "pro" } });
+    w.tynoc("event", { name: "Bad", data: { nested: { a: 1 } } });
+    addScript();
+    start();
+    await flush();
+    expect(sent.map((s) => s.body.type)).toEqual(["event", "pageview"]);
+    expect(sent[0].body).toMatchObject({ name: "Signup", data: { plan: "pro" } });
+  });
+
   it("only logs in development mode", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     addScript({ "data-mode": "development" });
